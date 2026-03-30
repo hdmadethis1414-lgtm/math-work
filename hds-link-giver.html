@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link Generator</title>
+    <!-- Tailwind CSS Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #1a1a1e; color: #f2f3f5; }
+        .discord-shadow { box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .gradient-text {
+            background: linear-gradient(135deg, #3b82f6, #60a5fa);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .animate-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .modal-backdrop { background-color: rgba(0,0,0,0.7); }
+        .rotate-45 { transform: rotate(45deg); }
+        .group:hover .group-hover-rotate { transform: rotate(45deg); }
+        .group-hover-rotate { transition: transform 0.2s; }
+        .opacity-0 { opacity: 0; }
+        .group:hover .group-hover-opacity { opacity: 1; }
+        .group-hover-opacity { transition: opacity 0.2s; }
+    </style>
+</head>
+<body class="min-h-screen p-4">
+    <div id="root"></div>
+
+    <!-- React and Supabase via ESM -->
+    <script type="module">
+        import React, { useState, useEffect } from 'https://esm.sh/react@18.2.0';
+        import ReactDOM from 'https://esm.sh/react-dom@18.2.0/client';
+        import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+        import * as lucide from 'https://esm.sh/lucide-react@0.344.0';
+
+        const SUPABASE_URL = 'https://cstwudizoksseiualaom.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNzdHd1ZGl6b2tzc2VpdWFsYW9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1Njk2NDksImV4cCI6MjA5MDE0NTY0OX0._soR9AVSeLCSkdOiX4GvbrDYy-Fikri0Cz_dyB3LCAM';
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const Home = ({ onGoToAdmin, onGoToChat, onGoToAdminChat, sections }) => {
+            const [sort, setSort] = useState('newest');
+            const [sectionId, setSectionId] = useState('all');
+            const [loading, setLoading] = useState(false);
+            const [result, setResult] = useState(null);
+
+            const fetchRandomLink = async () => {
+                setLoading(true);
+                try {
+                    const body = { sort };
+                    if (sectionId !== 'all') body.section_id = sectionId;
+                    const { data, error } = await supabase.functions.invoke('discord-links', { body });
+                    if (error) {
+                        const errorMsg = await error?.context?.text();
+                        throw new Error(errorMsg || error?.message || "Failed to fetch link");
+                    }
+                    if (data?.error) throw new Error(data.error);
+                    setResult(data.url);
+                } catch (err) {
+                    alert(err.message);
+                    setResult(null);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const activeSection = sections.find(s => s.id === sectionId);
+            const displayTitle = activeSection ? `${activeSection.name} Randomizer` : "Link Generator";
+
+            return React.createElement('div', { className: 'min-h-screen flex items-center justify-center relative' }, [
+                React.createElement('div', { className: 'absolute top-0 right-0 flex gap-2 p-4' }, [
+                    React.createElement('button', {
+                        onClick: onGoToChat,
+                        className: 'p-3 bg-[#2b2d31] hover:bg-[#35373c] text-gray-400 rounded-full transition-all',
+                        title: 'Public Chat'
+                    }, React.createElement(lucide.MessageSquare, { className: 'w-6 h-6' })),
+                    React.createElement('button', {
+                        onClick: onGoToAdminChat,
+                        className: 'p-3 bg-[#2b2d31] hover:bg-[#35373c] text-gray-400 rounded-full transition-all',
+                        title: 'Admin Chat'
+                    }, React.createElement(lucide.Shield, { className: 'w-6 h-6' })),
+                    React.createElement('button', {
+                        onClick: onGoToAdmin,
+                        className: 'p-3 bg-[#2b2d31] hover:bg-[#35373c] text-gray-400 rounded-full transition-all group',
+                        title: 'Admin Panel'
+                    }, React.createElement(lucide.Settings, { className: 'w-6 h-6 group-hover:rotate-45 transition-transform' }))
+                ]),
+
+                React.createElement('div', { className: 'w-full max-w-md discord-shadow bg-[#232428] rounded-2xl p-8 border border-[#2b2d31]' }, [
+                    React.createElement('div', { className: 'text-center mb-8' }, [
+                        React.createElement('div', { className: 'mx-auto bg-blue-500/10 w-16 h-16 rounded-full flex items-center justify-center mb-4' }, 
+                            React.createElement(lucide.Link, { className: 'w-8 h-8 text-blue-500' })
+                        ),
+                        React.createElement('h1', { className: 'text-3xl font-bold gradient-text mb-2' }, displayTitle),
+                        React.createElement('p', { className: 'text-gray-400 text-sm' }, 'Discover links shared in the Everest community')
+                    ]),
+
+                    React.createElement('div', { className: 'space-y-6' }, [
+                        React.createElement('div', { className: 'space-y-2' }, [
+                            React.createElement('label', { className: 'text-xs font-bold text-gray-500 uppercase tracking-widest' }, 'Select Section'),
+                            React.createElement('select', { 
+                                className: 'w-full bg-[#1e1f22] border-none rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none',
+                                value: sectionId,
+                                onChange: (e) => setSectionId(e.target.value)
+                            }, [
+                                React.createElement('option', { value: 'all' }, 'All Sections'),
+                                ...sections.map(s => React.createElement('option', { key: s.id, value: s.id }, s.name))
+                            ])
+                        ]),
+
+                        React.createElement('div', { className: 'space-y-3 bg-[#1e1f22] p-4 rounded-xl' }, [
+                            React.createElement('label', { className: 'text-xs font-bold text-gray-500 uppercase tracking-widest' }, 'Pool Sorting'),
+                            React.createElement('div', { className: 'flex flex-col space-y-2' }, [
+                                ['newest', 'Newest First'], ['oldest', 'Oldest First']
+                            ].map(([val, label]) => 
+                                React.createElement('label', { key: val, className: 'flex items-center space-x-3 p-2 rounded-md hover:bg-[#2b2d31] cursor-pointer' }, [
+                                    React.createElement('input', { 
+                                        type: 'radio', 
+                                        name: 'sort', 
+                                        value: val, 
+                                        checked: sort === val,
+                                        className: 'w-4 h-4 accent-blue-500',
+                                        onChange: (e) => setSort(e.target.value)
+                                    }),
+                                    React.createElement('span', { className: 'text-sm font-medium' }, label)
+                                ])
+                            ))
+                        ]),
+
+                        React.createElement('button', { 
+                            onClick: fetchRandomLink,
+                            disabled: loading,
+                            className: 'w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2'
+                        }, loading ? [
+                            React.createElement(lucide.RefreshCw, { className: 'w-5 h-5 animate-spin' }),
+                            'Drawing...'
+                        ] : 'Get Random Link'),
+
+                        result && React.createElement('div', { className: 'mt-6 bg-[#1e1f22] p-4 rounded-xl border border-blue-500/20' }, [
+                            React.createElement('label', { className: 'text-xs font-bold text-gray-500 uppercase tracking-widest block mb-2' }, 'Result'),
+                            React.createElement('p', { className: 'text-sm break-all mb-4' }, result),
+                            React.createElement('a', { 
+                                href: result, 
+                                target: '_blank', 
+                                className: 'w-full py-2 flex items-center justify-center gap-2 border border-blue-500/30 rounded-lg hover:bg-blue-500/10 text-sm font-semibold'
+                            }, [
+                                'Open Link',
+                                React.createElement(lucide.ExternalLink, { className: 'w-4 h-4' })
+                            ])
+                        ]),
+
+                        !result && !loading && React.createElement('div', { className: 'text-center py-6 text-gray-500 italic border-2 border-dashed border-[#2b2d31] rounded-xl' }, 'Click the button to draw a link'),
+
+                        React.createElement('div', { className: 'pt-6 mt-4 border-t border-[#2b2d31] text-center' }, 
+                            React.createElement('a', { 
+                                href: 'https://discord.gg/U3adwTf9dy', 
+                                target: '_blank', 
+                                className: 'text-blue-400 hover:text-blue-300 font-bold flex items-center justify-center gap-2'
+                            }, [
+                                React.createElement(lucide.MessageSquare, { className: 'w-4 h-4' }),
+                                'join our discord :)'
+                            ])
+                        )
+                    ])
+                ])
+            ]);
+        };
+
+        const Admin = ({ onBack, sections, onRefreshSections }) => {
+            const [authorized, setAuthorized] = useState(false);
+            const [password, setPassword] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [bulkMode, setBulkMode] = useState(false);
+            const [linkUrl, setLinkUrl] = useState('');
+            const [linkSectionId, setLinkSectionId] = useState('');
+            const [newSectionName, setNewSectionName] = useState('');
+            const [manageSectionId, setManageSectionId] = useState('');
+            const [links, setLinks] = useState([]);
+            const [editingLink, setEditingLink] = useState(null);
+
+            useEffect(() => {
+                if (authorized && manageSectionId) {
+                    fetchLinksBySection(manageSectionId);
+                }
+            }, [authorized, manageSectionId]);
+
+            const fetchLinksBySection = async (id) => {
+                const { data } = await supabase.from('discord_links').select('*').eq('section_id', id).order('created_at', { ascending: false });
+                setLinks(data || []);
+            };
+
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                const encoder = new TextEncoder();
+                const data = encoder.encode(password);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+                if (hashHex === '51cb01923797268a3519781d8fc3b2174f91d1866d29dbd5712e5336dbbe46cb') {
+                    setAuthorized(true);
+                } else {
+                    alert('Invalid password');
+                }
+            };
+
+            const handleAddLink = async (e) => {
+                e.preventDefault();
+                if (!linkSectionId) return alert('Select a section');
+                setLoading(true);
+                try {
+                    const urls = bulkMode ? linkUrl.split(/[\s\n,]+/).filter(u => u.trim() !== '') : [linkUrl];
+                    const toInsert = urls.map(url => ({
+                        url,
+                        section_id: linkSectionId,
+                        message_id: `manual-${Date.now()}-${Math.random().toString(36).substr(2,9)}`,
+                        channel_id: 'manual',
+                        created_at: new Date().toISOString()
+                    }));
+                    const { error } = await supabase.from('discord_links').insert(toInsert);
+                    if (error) throw error;
+                    alert('Added successfully!');
+                    setLinkUrl('');
+                    if (manageSectionId === linkSectionId) fetchLinksBySection(manageSectionId);
+                } catch (err) { alert(err.message); } finally { setLoading(false); }
+            };
+
+            const handleAddSection = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                try {
+                    const { error } = await supabase.from('link_sections').insert([{ name: newSectionName }]);
+                    if (error) throw error;
+                    alert('Section created!');
+                    setNewSectionName('');
+                    onRefreshSections();
+                } catch (err) { alert(err.message); } finally { setLoading(false); }
+            };
+
+            const handleDeleteSection = async (id, name) => {
+                if (!confirm(`Are you sure you want to delete the section "${name}"? All links in this section will also be deleted.`)) return;
+                try {
+                    await supabase.from('discord_links').delete().eq('section_id', id);
+                    const { error } = await supabase.from('link_sections').delete().eq('id', id);
+                    if (error) throw error;
+                    alert('Section and its links deleted!');
+                    onRefreshSections();
+                    if (manageSectionId === id) setManageSectionId('');
+                } catch (err) { alert(err.message); }
+            };
+
+            const handleDeleteLink = async (id) => {
+                if (!confirm('Delete this link?')) return;
+                try {
+                    const { error } = await supabase.from('discord_links').delete().eq('id', id);
+                    if (error) throw error;
+                    fetchLinksBySection(manageSectionId);
+                } catch (err) { alert(err.message); }
+            };
+
+            const handleUpdateLink = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                try {
+                    const { error } = await supabase.from('discord_links').update({ url: editingLink.url, section_id: editingLink.section_id }).eq('id', editingLink.id);
+                    if (error) throw error;
+                    setEditingLink(null);
+                    fetchLinksBySection(manageSectionId);
+                } catch (err) { alert(err.message); } finally { setLoading(false); }
+            };
+
+            if (!authorized) {
+                return React.createElement('div', { className: 'min-h-screen flex items-center justify-center relative' }, [
+                    React.createElement('button', { 
+                        onClick: onBack, 
+                        className: 'absolute top-4 left-4 p-2 bg-[#2b2d31] rounded-full' 
+                    }, React.createElement(lucide.ArrowLeft, { className: 'w-5 h-5' })),
+                    React.createElement('div', { className: 'w-full max-w-sm bg-[#232428] p-8 rounded-2xl discord-shadow border border-[#2b2d31]' }, [
+                        React.createElement('div', { className: 'text-center mb-6' }, [
+                            React.createElement(lucide.Shield, { className: 'w-12 h-12 text-blue-500 mx-auto mb-2' }),
+                            React.createElement('h2', { className: 'text-xl font-bold' }, 'Admin Access')
+                        ]),
+                        React.createElement('form', { onSubmit: handleLogin, className: 'space-y-4' }, [
+                            React.createElement('input', { 
+                                type: 'password', 
+                                placeholder: 'Password',
+                                className: 'w-full bg-[#1e1f22] p-3 rounded-lg outline-none focus:ring-2 focus:ring-blue-500',
+                                value: password,
+                                onChange: (e) => setPassword(e.target.value)
+                            }),
+                            React.createElement('button', { type: 'submit', className: 'w-full py-3 bg-blue-600 rounded-lg font-bold' }, 'Unlock Panel')
+                        ])
+                    ])
+                ]);
+            }
+
+            return React.createElement('div', { className: 'max-w-4xl mx-auto py-8 space-y-8' }, [
+                React.createElement('div', { className: 'flex items-center justify-between' }, [
+                    React.createElement('div', { className: 'flex items-center gap-4' }, [
+                        React.createElement('button', { onClick: onBack, className: 'p-2 bg-[#2b2d31] rounded-full' }, React.createElement(lucide.ArrowLeft, { className: 'w-5 h-5' })),
+                        React.createElement('h1', { className: 'text-3xl font-bold gradient-text' }, 'Admin Panel')
+                    ]),
+                    React.createElement('button', { onClick: () => setAuthorized(false), className: 'px-4 py-2 bg-[#2b2d31] rounded-lg' }, 'Lock')
+                ]),
+
+                React.createElement('div', { className: 'grid grid-cols-1 md:grid-cols-2 gap-8' }, [
+                    // Add Link Card
+                    React.createElement('div', { className: 'bg-[#232428] p-6 rounded-2xl discord-shadow border border-[#2b2d31]' }, [
+                        React.createElement('div', { className: 'flex items-center justify-between mb-6' }, [
+                            React.createElement('h3', { className: 'font-bold' }, 'Add Manual Link'),
+                            React.createElement('div', { className: 'flex items-center gap-2' }, [
+                                React.createElement('span', { className: 'text-xs text-gray-400' }, 'Bulk'),
+                                React.createElement('input', { 
+                                    type: 'checkbox', 
+                                    checked: bulkMode, 
+                                    onChange: (e) => setBulkMode(e.target.checked),
+                                    className: 'w-4 h-4'
+                                })
+                            ])
+                        ]),
+                        React.createElement('form', { onSubmit: handleAddLink, className: 'space-y-4' }, [
+                            bulkMode ? 
+                                React.createElement('textarea', { 
+                                    placeholder: 'Paste links here...',
+                                    className: 'w-full bg-[#1e1f22] p-3 rounded-lg h-32 outline-none',
+                                    value: linkUrl,
+                                    onChange: (e) => setLinkUrl(e.target.value)
+                                }) :
+                                React.createElement('input', { 
+                                    placeholder: 'https://...',
+                                    className: 'w-full bg-[#1e1f22] p-3 rounded-lg outline-none',
+                                    value: linkUrl,
+                                    onChange: (e) => setLinkUrl(e.target.value)
+                                }),
+                            React.createElement('select', { 
+                                className: 'w-full bg-[#1e1f22] p-3 rounded-lg outline-none',
+                                value: linkSectionId,
+                                onChange: (e) => setLinkSectionId(e.target.value)
+                            }, [
+                                React.createElement('option', { value: '' }, 'Select Section'),
+                                ...sections.map(s => React.createElement('option', { key: s.id, value: s.id }, s.name))
+                            ]),
+                            React.createElement('button', { disabled: loading, className: 'w-full py-3 bg-blue-600 rounded-lg font-bold' }, 'Add Link')
+                        ])
+                    ]),
+
+                    // Create Section Card
+                    React.createElement('div', { className: 'bg-[#232428] p-6 rounded-2xl discord-shadow border border-[#2b2d31]' }, [
+                        React.createElement('h3', { className: 'font-bold mb-6' }, 'Create Section'),
+                        React.createElement('form', { onSubmit: handleAddSection, className: 'space-y-4' }, [
+                            React.createElement('input', { 
+                                placeholder: 'Section name...',
+                                className: 'w-full bg-[#1e1f22] p-3 rounded-lg outline-none',
+                                value: newSectionName,
+                                onChange: (e) => setNewSectionName(e.target.value)
+                            }),
+                            React.createElement('button', { disabled: loading, className: 'w-full py-3 bg-[#2b2d31] rounded-lg font-bold' }, 'Create Section')
+                        ])
+                    ])
+                ]),
+
+                // Manage Links Card
+                React.createElement('div', { className: 'bg-[#232428] p-6 rounded-2xl discord-shadow border border-[#2b2d31]' }, [
+                    React.createElement('h3', { className: 'font-bold mb-6' }, 'Manage Links'),
+                    React.createElement('select', { 
+                        className: 'w-full bg-[#1e1f22] p-3 rounded-lg mb-6 outline-none',
+                        value: manageSectionId,
+                        onChange: (e) => setManageSectionId(e.target.value)
+                    }, [
+                        React.createElement('option', { value: '' }, 'Select section to manage'),
+                        ...sections.map(s => React.createElement('option', { key: s.id, value: s.id }, s.name))
+                    ]),
+                    React.createElement('div', { className: 'space-y-2' }, 
+                        links.map(l => React.createElement('div', { key: l.id, className: 'flex items-center justify-between p-3 bg-[#1e1f22] rounded-lg group' }, [
+                            React.createElement('span', { className: 'truncate flex-1 underline text-blue-400' }, l.url),
+                            React.createElement('div', { className: 'flex gap-2' }, [
+                                React.createElement('button', { onClick: () => setEditingLink(l), className: 'p-2 hover:text-blue-500' }, React.createElement(lucide.Edit2, { className: 'w-4 h-4' })),
+                                React.createElement('button', { onClick: () => handleDeleteLink(l.id), className: 'p-2 hover:text-red-500' }, React.createElement(lucide.Trash2, { className: 'w-4 h-4' }))
+                            ])
+                        ]))
+                    )
+                ]),
+
+                // Edit Modal
+                editingLink && React.createElement('div', { className: 'fixed inset-0 modal-backdrop flex items-center justify-center p-4 z-50' }, 
+                    React.createElement('div', { className: 'bg-[#232428] w-full max-w-md p-6 rounded-2xl border border-[#2b2d31]' }, [
+                        React.createElement('h3', { className: 'text-xl font-bold mb-6' }, 'Edit Link'),
+                        React.createElement('form', { onSubmit: handleUpdateLink, className: 'space-y-4' }, [
+                            React.createElement('div', { className: 'space-y-2' }, [
+                                React.createElement('label', { className: 'text-xs font-bold text-gray-500 uppercase' }, 'URL'),
+                                React.createElement('input', { 
+                                    className: 'w-full bg-[#1e1f22] p-3 rounded-lg outline-none',
+                                    value: editingLink.url,
+                                    onChange: (e) => setEditingLink({...editingLink, url: e.target.value})
+                                })
+                            ]),
+                            React.createElement('div', { className: 'space-y-2' }, [
+                                React.createElement('label', { className: 'text-xs font-bold text-gray-500 uppercase' }, 'Section'),
+                                React.createElement('select', { 
+                                    className: 'w-full bg-[#1e1f22] p-3 rounded-lg outline-none',
+                                    value: editingLink.section_id,
+                                    onChange: (e) => setEditingLink({...editingLink, section_id: e.target.value})
+                                }, sections.map(s => React.createElement('option', { key: s.id, value: s.id }, s.name)))
+                            ]),
+                            React.createElement('div', { className: 'flex gap-3 pt-4' }, [
+                                React.createElement('button', { type: 'button', onClick: () => setEditingLink(null), className: 'flex-1 py-3 bg-[#2b2d31] rounded-lg font-bold' }, 'Cancel'),
+                                React.createElement('button', { type: 'submit', disabled: loading, className: 'flex-1 py-3 bg-blue-600 rounded-lg font-bold' }, 'Save')
+                            ])
+                        ])
+                    ])
+                ),
+
+                // Existing Sections Card
+                React.createElement('div', { className: 'bg-[#232428] p-6 rounded-2xl discord-shadow border border-[#2b2d31]' }, [
+                    React.createElement('h3', { className: 'font-bold mb-6' }, 'Existing Sections'),
+                    React.createElement('div', { className: 'space-y-2' }, 
+                        sections.map(s => React.createElement('div', { key: s.id, className: 'flex items-center justify-between p-3 bg-[#1e1f22] rounded-lg group' }, [
+                            React.createElement('span', { className: 'font-semibold' }, s.name),
+                            React.createElement('button', { 
+                                onClick: () => handleDeleteSection(s.id, s.name),
+                                className: 'p-2 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity'
+                            }, React.createElement(lucide.Trash2, { className: 'w-4 h-4' }))
+                        ]))
+                    )
+                ])
+            ]);
+        };
+
+        const PublicChat = ({ onBack }) => {
+            const [messages, setMessages] = useState([]);
+            const [newMessage, setNewMessage] = useState('');
+            const [username, setUsername] = useState('');
+            const messagesEndRef = useRef(null);
+
+            useEffect(() => {
+                let storedUsername = localStorage.getItem('chat_username');
+                if (!storedUsername) {
+                    storedUsername = `User${Math.floor(Math.random() * 10000)}`;
+                    localStorage.setItem('chat_username', storedUsername);
+                }
+                setUsername(storedUsername);
+
+                fetchMessages();
+
+                const channel = supabase
+                    .channel('public-chat')
+                    .on('postgres_changes', {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'public_chat_messages'
+                    }, (payload) => {
+                        setMessages(prev => [...prev, payload.new]);
+                    })
+                    .subscribe();
+
+                return () => { supabase.removeChannel(channel); };
+            }, []);
+
+            useEffect(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, [messages]);
+
+            const fetchMessages = async () => {
+                const { data } = await supabase
+                    .from('public_chat_messages')
+                    .select('*')
+                    .order('created_at', { ascending: true })
+                    .limit(100);
+                setMessages(data || []);
+            };
+
+            const sendMessage = async (e) => {
+                e.preventDefault();
+                if (!newMessage.trim()) return;
+                try {
+                    const { error } = await supabase.from('public_chat_messages').insert([{
+                        username,
+                        message: newMessage.trim()
+                    }]);
+                    if (error) throw error;
+                    setNewMessage('');
+                } catch (err) { alert(err.message); }
+            };
+
+            return React.createElement('div', { className: 'min-h-screen p-4 md:p-8 max-w-4xl mx-auto' }, [
+                React.createElement('div', { className: 'flex items-center justify-between mb-6' }, [
+                    React.createElement('div', { className: 'flex items-center gap-3' }, [
+                        React.createElement('button', { onClick: onBack, className: 'p-2 bg-[#2b2d31] rounded-full' }, 
+                            React.createElement(lucide.ArrowLeft, { className: 'w-5 h-5' })
+                        ),
+                        React.createElement(lucide.MessageSquare, { className: 'w-8 h-8 text-blue-500' }),
+                        React.createElement('h1', { className: 'text-3xl font-bold gradient-text' }, 'Public Chat')
+                    ])
+                ]),
+                React.createElement('div', { className: 'bg-[#232428] rounded-2xl discord-shadow border border-[#2b2d31] flex flex-col', style: { height: 'calc(100vh - 200px)' } }, [
+                    React.createElement('div', { className: 'p-4 border-b border-[#2b2d31]' }, 
+                        React.createElement('p', { className: 'text-sm text-gray-400' }, [
+                            'Chatting as: ',
+                            React.createElement('span', { className: 'text-blue-500 font-bold' }, username)
+                        ])
+                    ),
+                    React.createElement('div', { className: 'flex-1 overflow-y-auto p-4 space-y-3' }, [
+                        ...messages.map(msg => 
+                            React.createElement('div', { 
+                                key: msg.id, 
+                                className: msg.username === username ? 'bg-blue-500/20 ml-auto max-w-[80%] p-3 rounded-lg' : 'bg-[#1e1f22] max-w-[80%] p-3 rounded-lg'
+                            }, [
+                                React.createElement('p', { className: 'text-xs font-bold text-blue-500 mb-1' }, msg.username),
+                                React.createElement('p', { className: 'text-sm break-words' }, msg.message),
+                                React.createElement('p', { className: 'text-xs text-gray-500 mt-1' }, 
+                                    new Date(msg.created_at).toLocaleTimeString()
+                                )
+                            ])
+                        ),
+                        React.createElement('div', { ref: messagesEndRef })
+                    ]),
+                    React.createElement('form', { onSubmit: sendMessage, className: 'p-4 border-t border-[#2b2d31] flex gap-2' }, [
+                        React.createElement('input', {
+                            placeholder: 'Type a message...',
+                            className: 'flex-1 bg-[#1e1f22] p-3 rounded-lg outline-none',
+                            value: newMessage,
+                            onChange: (e) => setNewMessage(e.target.value)
+                        }),
+                        React.createElement('button', { type: 'submit', className: 'px-4 py-3 bg-blue-600 rounded-lg' }, 
+                            React.createElement(lucide.Send, { className: 'w-4 h-4' })
+                        )
+                    ])
+                ])
+            ]);
+        };
+
+        const AdminChat = ({ onBack }) => {
+            const [authorized, setAuthorized] = useState(false);
+            const [password, setPassword] = useState('');
+            const [messages, setMessages] = useState([]);
+            const [newMessage, setNewMessage] = useState('');
+            const [username, setUsername] = useState('');
+            const messagesEndRef = useRef(null);
+
+            useEffect(() => {
+                if (authorized) {
+                    let storedUsername = localStorage.getItem('admin_chat_username');
+                    if (!storedUsername) {
+                        storedUsername = `Admin${Math.floor(Math.random() * 1000)}`;
+                        localStorage.setItem('admin_chat_username', storedUsername);
+                    }
+                    setUsername(storedUsername);
+
+                    fetchMessages();
+
+                    const channel = supabase
+                        .channel('admin-chat')
+                        .on('postgres_changes', {
+                            event: 'INSERT',
+                            schema: 'public',
+                            table: 'admin_chat_messages'
+                        }, (payload) => {
+                            setMessages(prev => [...prev, payload.new]);
+                        })
+                        .subscribe();
+
+                    return () => { supabase.removeChannel(channel); };
+                }
+            }, [authorized]);
+
+            useEffect(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, [messages]);
+
+            const fetchMessages = async () => {
+                const { data } = await supabase
+                    .from('admin_chat_messages')
+                    .select('*')
+                    .order('created_at', { ascending: true })
+                    .limit(100);
+                setMessages(data || []);
+            };
+
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                const encoder = new TextEncoder();
+                const data = encoder.encode(password);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+                if (hashHex === '51cb01923797268a3519781d8fc3b2174f91d1866d29dbd5712e5336dbbe46cb') {
+                    setAuthorized(true);
+                } else {
+                    alert('Invalid password');
+                }
+            };
+
+            const sendMessage = async (e) => {
+                e.preventDefault();
+                if (!newMessage.trim()) return;
+                try {
+                    const { error } = await supabase.from('admin_chat_messages').insert([{
+                        username,
+                        message: newMessage.trim()
+                    }]);
+                    if (error) throw error;
+                    setNewMessage('');
+                } catch (err) { alert(err.message); }
+            };
+
+            if (!authorized) {
+                return React.createElement('div', { className: 'min-h-screen flex items-center justify-center relative' }, [
+                    React.createElement('button', { 
+                        onClick: onBack, 
+                        className: 'absolute top-4 left-4 p-2 bg-[#2b2d31] rounded-full' 
+                    }, React.createElement(lucide.ArrowLeft, { className: 'w-5 h-5' })),
+                    React.createElement('div', { className: 'w-full max-w-sm bg-[#232428] p-8 rounded-2xl discord-shadow border border-[#2b2d31]' }, [
+                        React.createElement('div', { className: 'text-center mb-6' }, [
+                            React.createElement(lucide.Shield, { className: 'w-12 h-12 text-blue-500 mx-auto mb-2' }),
+                            React.createElement('h2', { className: 'text-xl font-bold' }, 'Admin Chat Access')
+                        ]),
+                        React.createElement('form', { onSubmit: handleLogin, className: 'space-y-4' }, [
+                            React.createElement('input', { 
+                                type: 'password', 
+                                placeholder: 'Password',
+                                className: 'w-full bg-[#1e1f22] p-3 rounded-lg outline-none focus:ring-2 focus:ring-blue-500',
+                                value: password,
+                                onChange: (e) => setPassword(e.target.value)
+                            }),
+                            React.createElement('button', { type: 'submit', className: 'w-full py-3 bg-blue-600 rounded-lg font-bold' }, 'Unlock Chat')
+                        ])
+                    ])
+                ]);
+            }
+
+            return React.createElement('div', { className: 'min-h-screen p-4 md:p-8 max-w-4xl mx-auto' }, [
+                React.createElement('div', { className: 'flex items-center justify-between mb-6' }, [
+                    React.createElement('div', { className: 'flex items-center gap-3' }, [
+                        React.createElement('button', { onClick: onBack, className: 'p-2 bg-[#2b2d31] rounded-full' }, 
+                            React.createElement(lucide.ArrowLeft, { className: 'w-5 h-5' })
+                        ),
+                        React.createElement(lucide.Shield, { className: 'w-8 h-8 text-blue-500' }),
+                        React.createElement('h1', { className: 'text-3xl font-bold gradient-text' }, 'Admin Chat')
+                    ]),
+                    React.createElement('button', { onClick: () => setAuthorized(false), className: 'px-4 py-2 bg-[#2b2d31] rounded-lg' }, 'Lock')
+                ]),
+                React.createElement('div', { className: 'bg-[#232428] rounded-2xl discord-shadow border border-[#2b2d31] flex flex-col', style: { height: 'calc(100vh - 200px)' } }, [
+                    React.createElement('div', { className: 'p-4 border-b border-[#2b2d31]' }, 
+                        React.createElement('p', { className: 'text-sm text-gray-400' }, [
+                            'Chatting as: ',
+                            React.createElement('span', { className: 'text-blue-500 font-bold' }, username)
+                        ])
+                    ),
+                    React.createElement('div', { className: 'flex-1 overflow-y-auto p-4 space-y-3' }, [
+                        ...messages.map(msg => 
+                            React.createElement('div', { 
+                                key: msg.id, 
+                                className: msg.username === username ? 'bg-blue-500/20 ml-auto max-w-[80%] p-3 rounded-lg' : 'bg-[#1e1f22] max-w-[80%] p-3 rounded-lg'
+                            }, [
+                                React.createElement('p', { className: 'text-xs font-bold text-blue-500 mb-1' }, msg.username),
+                                React.createElement('p', { className: 'text-sm break-words' }, msg.message),
+                                React.createElement('p', { className: 'text-xs text-gray-500 mt-1' }, 
+                                    new Date(msg.created_at).toLocaleTimeString()
+                                )
+                            ])
+                        ),
+                        React.createElement('div', { ref: messagesEndRef })
+                    ]),
+                    React.createElement('form', { onSubmit: sendMessage, className: 'p-4 border-t border-[#2b2d31] flex gap-2' }, [
+                        React.createElement('input', {
+                            placeholder: 'Type a message...',
+                            className: 'flex-1 bg-[#1e1f22] p-3 rounded-lg outline-none',
+                            value: newMessage,
+                            onChange: (e) => setNewMessage(e.target.value)
+                        }),
+                        React.createElement('button', { type: 'submit', className: 'px-4 py-3 bg-blue-600 rounded-lg' }, 
+                            React.createElement(lucide.Send, { className: 'w-4 h-4' })
+                        )
+                    ])
+                ])
+            ]);
+        };
+
+        const App = () => {
+            const [currentPage, setCurrentPage] = useState('home');
+            const [sections, setSections] = useState([]);
+
+            const fetchSections = async () => {
+                const { data } = await supabase.from('link_sections').select('*').order('name');
+                setSections(data || []);
+            };
+
+            useEffect(() => {
+                fetchSections();
+            }, []);
+
+            const renderPage = () => {
+                switch(currentPage) {
+                    case 'home':
+                        return React.createElement(Home, { 
+                            sections, 
+                            onGoToAdmin: () => setCurrentPage('admin'),
+                            onGoToChat: () => setCurrentPage('chat'),
+                            onGoToAdminChat: () => setCurrentPage('adminChat')
+                        });
+                    case 'admin':
+                        return React.createElement(Admin, { 
+                            sections, 
+                            onBack: () => setCurrentPage('home'), 
+                            onRefreshSections: fetchSections 
+                        });
+                    case 'chat':
+                        return React.createElement(PublicChat, { onBack: () => setCurrentPage('home') });
+                    case 'adminChat':
+                        return React.createElement(AdminChat, { onBack: () => setCurrentPage('home') });
+                    default:
+                        return React.createElement(Home, { 
+                            sections, 
+                            onGoToAdmin: () => setCurrentPage('admin'),
+                            onGoToChat: () => setCurrentPage('chat'),
+                            onGoToAdminChat: () => setCurrentPage('adminChat')
+                        });
+                }
+            };
+
+            return renderPage();
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
+    </script>
+</body>
+</html>
