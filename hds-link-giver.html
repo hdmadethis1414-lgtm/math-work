@@ -752,7 +752,7 @@
                 const newVideo = {
                     id: id.trim(),
                     title: `Video ${playlist.length + 1}`,
-                    url: `https://www.youtube.com/embed/${id.trim()}`
+                    url: `https://www.yout-ube.com/watch?v=${id.trim()}`
                 };
                 setPlaylist(prev => [...prev, newVideo]);
                 setVideoId('');
@@ -849,12 +849,11 @@
                             ])
                         ]),
                         h('div', { key: 'video', className: 'aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center relative' }, [
-                            currentVideo ? h('iframe', {
-                                key: 'iframe',
+                            currentVideo ? h('embed', {
+                                key: 'embed',
                                 src: currentVideo.url,
                                 className: 'w-full h-full border-none',
-                                allow: 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture',
-                                allowFullScreen: true
+                                type: 'text/html'
                             }) : h('div', { key: 'empty', className: 'text-center text-gray-500' }, [
                                 h(lucide.Video, { key: 'icon', className: 'w-12 h-12 mx-auto mb-2 opacity-20' }),
                                 h('p', { key: 'text' }, 'No video selected')
