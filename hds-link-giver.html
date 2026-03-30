@@ -42,7 +42,7 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNzdHd1ZGl6b2tzc2VpdWFsYW9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1Njk2NDksImV4cCI6MjA5MDE0NTY0OX0._soR9AVSeLCSkdOiX4GvbrDYy-Fikri0Cz_dyB3LCAM';
         const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        const Home = ({ onGoToAdmin, onGoToChat, onGoToAdminChat, onGoToVideo, sections }) => {
+        const Home = ({ onGoToAdmin, onGoToChat, onGoToVideo, sections }) => {
             const [sort, setSort] = useState('newest');
             const [sectionId, setSectionId] = useState('all');
             const [loading, setLoading] = useState(false);
@@ -89,11 +89,6 @@
                         className: 'p-3 bg-[#2b2d31] hover:bg-[#35373c] text-gray-400 rounded-full transition-all',
                         title: 'Public Chat'
                     }, React.createElement(lucide.MessageSquare, { className: 'w-6 h-6' })),
-                    React.createElement('button', {
-                        onClick: onGoToAdminChat,
-                        className: 'p-3 bg-[#2b2d31] hover:bg-[#35373c] text-gray-400 rounded-full transition-all',
-                        title: 'Admin Chat'
-                    }, React.createElement(lucide.Shield, { className: 'w-6 h-6' })),
                     React.createElement('button', {
                         onClick: onGoToAdmin,
                         className: 'p-3 bg-[#2b2d31] hover:bg-[#35373c] text-gray-400 rounded-full transition-all group',
@@ -208,11 +203,97 @@
             const [links, setLinks] = useState([]);
             const [editingLink, setEditingLink] = useState(null);
 
+            // Admin Chat State
+            const [chatMessages, setChatMessages] = useState([]);
+            const [chatNewMessage, setChatNewMessage] = useState('');
+            const [chatUsername, setChatUsername] = useState('');
+            const [chatTempUsername, setChatTempUsername] = useState('');
+            const [isChatUsernameSet, setIsChatUsernameSet] = useState(false);
+            const chatMessagesEndRef = useRef(null);
+
             useEffect(() => {
                 if (authorized && manageSectionId) {
                     fetchLinksBySection(manageSectionId);
                 }
             }, [authorized, manageSectionId]);
+
+            useEffect(() => {
+                if (authorized) {
+                    const storedUsername = localStorage.getItem('admin_chat_username');
+                    if (storedUsername) {
+                        setChatUsername(storedUsername);
+                        setIsChatUsernameSet(true);
+                    }
+                    fetchChatMessages();
+
+                    const channel = supabase
+                        .channel('admin-chat-panel')
+                        .on('postgres_changes', {
+                            event: 'INSERT',
+                            schema: 'public',
+                            table: 'admin_chat_messages'
+                        }, (payload) => {
+                            setChatMessages(prev => [...prev, payload.new]);
+                        })
+                        .subscribe();
+
+                    return () => { supabase.removeChannel(channel); };
+                }
+            }, [authorized]);
+
+            useEffect(() => {
+                chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, [chatMessages, isChatUsernameSet]);
+
+            const fetchLinksBySection = async (id) => {
+                const { data } = await supabase.from('discord_links').select('*').eq('section_id', id).order('created_at', { ascending: false });
+                setLinks(data || []);
+            };
+
+            const fetchChatMessages = async () => {
+                const { data } = await supabase
+                    .from('admin_chat_messages')
+                    .select('*')
+                    .order('created_at', { ascending: true })
+                    .limit(100);
+                setChatMessages(data || []);
+            };
+
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                const encoder = new TextEncoder();
+                const data = encoder.encode(password);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+                if (hashHex === '51cb01923797268a3519781d8fc3b2174f91d1866d29dbd5712e5336dbbe46cb') {
+                    setAuthorized(true);
+                } else {
+                    alert('Invalid password');
+                }
+            };
+
+            const handleSetChatUsername = (e) => {
+                e.preventDefault();
+                if (!chatTempUsername.trim()) return;
+                setChatUsername(chatTempUsername.trim());
+                localStorage.setItem('admin_chat_username', chatTempUsername.trim());
+                setIsChatUsernameSet(true);
+            };
+
+            const handleSendChatMessage = async (e) => {
+                e.preventDefault();
+                if (!chatNewMessage.trim() || !chatUsername) return;
+                try {
+                    const { error } = await supabase.from('admin_chat_messages').insert([{
+                        username: chatUsername,
+                        message: chatNewMessage.trim()
+                    }]);
+                    if (error) throw error;
+                    setChatNewMessage('');
+                } catch (err) { alert(err.message); }
+            };
 
             const fetchLinksBySection = async (id) => {
                 const { data } = await supabase.from('discord_links').select('*').eq('section_id', id).order('created_at', { ascending: false });
@@ -460,15 +541,16 @@
             const [messages, setMessages] = useState([]);
             const [newMessage, setNewMessage] = useState('');
             const [username, setUsername] = useState('');
+            const [tempUsername, setTempUsername] = useState('');
+            const [isUsernameSet, setIsUsernameSet] = useState(false);
             const messagesEndRef = useRef(null);
 
             useEffect(() => {
-                let storedUsername = localStorage.getItem('chat_username');
-                if (!storedUsername) {
-                    storedUsername = `User${Math.floor(Math.random() * 10000)}`;
-                    localStorage.setItem('chat_username', storedUsername);
+                const storedUsername = localStorage.getItem('chat_username');
+                if (storedUsername) {
+                    setUsername(storedUsername);
+                    setIsUsernameSet(true);
                 }
-                setUsername(storedUsername);
 
                 fetchMessages();
 
@@ -499,9 +581,17 @@
                 setMessages(data || []);
             };
 
+            const handleSetUsername = (e) => {
+                e.preventDefault();
+                if (!tempUsername.trim()) return;
+                setUsername(tempUsername.trim());
+                localStorage.setItem('chat_username', tempUsername.trim());
+                setIsUsernameSet(true);
+            };
+
             const sendMessage = async (e) => {
                 e.preventDefault();
-                if (!newMessage.trim()) return;
+                if (!newMessage.trim() || !username) return;
                 try {
                     const { error } = await supabase.from('public_chat_messages').insert([{
                         username,
@@ -512,18 +602,44 @@
                 } catch (err) { alert(err.message); }
             };
 
-            return React.createElement('div', { className: 'min-h-screen p-4 md:p-8 max-w-4xl mx-auto' }, [
-                React.createElement('div', { className: 'flex items-center justify-between mb-6' }, [
+            if (!isUsernameSet) {
+                return React.createElement('div', { className: 'min-h-screen flex flex-col items-center justify-center p-4 bg-[#1a1a1e] relative' }, [
+                    React.createElement('button', { onClick: onBack, className: 'absolute top-4 left-4 p-2 bg-[#2b2d31] rounded-full' }, 
+                        React.createElement(lucide.ArrowLeft, { className: 'w-5 h-5' })
+                    ),
+                    React.createElement('div', { className: 'w-full max-w-sm bg-[#232428] p-8 rounded-2xl discord-shadow border border-[#2b2d31]' }, [
+                        React.createElement('div', { className: 'text-center mb-6' }, [
+                            React.createElement(lucide.User, { className: 'w-12 h-12 text-blue-500 mx-auto mb-2' }),
+                            React.createElement('h2', { className: 'text-xl font-bold' }, 'Join Public Chat'),
+                            React.createElement('p', { className: 'text-sm text-gray-400' }, 'Enter a display name to participate')
+                        ]),
+                        React.createElement('form', { onSubmit: handleSetUsername, className: 'space-y-4' }, [
+                            React.createElement('input', { 
+                                placeholder: 'Display Name',
+                                className: 'w-full bg-[#1e1f22] p-3 rounded-lg outline-none focus:ring-2 focus:ring-blue-500',
+                                value: tempUsername,
+                                onChange: (e) => setTempUsername(e.target.value),
+                                required: true
+                            }),
+                            React.createElement('button', { type: 'submit', className: 'w-full py-3 bg-blue-600 rounded-lg font-bold' }, 'Enter Chat')
+                        ])
+                    ])
+                ]);
+            }
+
+            return React.createElement('div', { className: 'min-h-screen p-4 md:p-8 max-w-4xl mx-auto flex flex-col h-screen overflow-hidden' }, [
+                React.createElement('div', { className: 'flex items-center justify-between mb-6 shrink-0' }, [
                     React.createElement('div', { className: 'flex items-center gap-3' }, [
                         React.createElement('button', { onClick: onBack, className: 'p-2 bg-[#2b2d31] rounded-full' }, 
                             React.createElement(lucide.ArrowLeft, { className: 'w-5 h-5' })
                         ),
                         React.createElement(lucide.MessageSquare, { className: 'w-8 h-8 text-blue-500' }),
                         React.createElement('h1', { className: 'text-3xl font-bold gradient-text' }, 'Public Chat')
-                    ])
+                    ]),
+                    React.createElement('button', { onClick: () => setIsUsernameSet(false), className: 'text-xs text-blue-500 hover:underline' }, 'Change Name')
                 ]),
-                React.createElement('div', { className: 'bg-[#232428] rounded-2xl discord-shadow border border-[#2b2d31] flex flex-col', style: { height: 'calc(100vh - 200px)' } }, [
-                    React.createElement('div', { className: 'p-4 border-b border-[#2b2d31]' }, 
+                React.createElement('div', { className: 'bg-[#232428] rounded-2xl discord-shadow border border-[#2b2d31] flex flex-col flex-1 overflow-hidden' }, [
+                    React.createElement('div', { className: 'p-4 border-b border-[#2b2d31] shrink-0' }, 
                         React.createElement('p', { className: 'text-sm text-gray-400' }, [
                             'Chatting as: ',
                             React.createElement('span', { className: 'text-blue-500 font-bold' }, username)
@@ -533,25 +649,26 @@
                         ...messages.map(msg => 
                             React.createElement('div', { 
                                 key: msg.id, 
-                                className: msg.username === username ? 'bg-blue-500/20 ml-auto max-w-[80%] p-3 rounded-lg' : 'bg-[#1e1f22] max-w-[80%] p-3 rounded-lg'
+                                className: msg.username === username ? 'bg-blue-500/20 ml-auto max-w-[85%] p-3 rounded-lg' : 'bg-[#1e1f22] max-w-[85%] p-3 rounded-lg'
                             }, [
                                 React.createElement('p', { className: 'text-xs font-bold text-blue-500 mb-1' }, msg.username),
                                 React.createElement('p', { className: 'text-sm break-words' }, msg.message),
-                                React.createElement('p', { className: 'text-xs text-gray-500 mt-1' }, 
+                                React.createElement('p', { className: 'text-[10px] text-gray-500 mt-1 text-right' }, 
                                     new Date(msg.created_at).toLocaleTimeString()
                                 )
                             ])
                         ),
                         React.createElement('div', { ref: messagesEndRef })
                     ]),
-                    React.createElement('form', { onSubmit: sendMessage, className: 'p-4 border-t border-[#2b2d31] flex gap-2' }, [
+                    React.createElement('form', { onSubmit: sendMessage, className: 'p-4 border-t border-[#2b2d31] flex gap-2 shrink-0' }, [
                         React.createElement('input', {
                             placeholder: 'Type a message...',
                             className: 'flex-1 bg-[#1e1f22] p-3 rounded-lg outline-none',
                             value: newMessage,
-                            onChange: (e) => setNewMessage(e.target.value)
+                            onChange: (e) => setNewMessage(e.target.value),
+                            autoComplete: 'off'
                         }),
-                        React.createElement('button', { type: 'submit', className: 'px-4 py-3 bg-blue-600 rounded-lg' }, 
+                        React.createElement('button', { type: 'submit', className: 'px-4 py-3 bg-blue-600 rounded-lg', disabled: !newMessage.trim() }, 
                             React.createElement(lucide.Send, { className: 'w-4 h-4' })
                         )
                     ])
